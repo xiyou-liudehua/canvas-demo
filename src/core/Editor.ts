@@ -213,7 +213,7 @@ export default class Editor {
     const ctx = this.graphView.getContext();
     if (!ctx) return;
 
-    // 清空画布
+    // 清空画布 (这会绘制背景色和背景图片)
     this.graphView.clear();
 
     // 获取排序后的节点
@@ -276,117 +276,53 @@ export default class Editor {
   }
 
   /**
-   * 导出为JSON
-   * @returns JSON字符串表示的画布状态
+   * 将当前编辑器状态导出为JSON字符串
+   * @returns JSON字符串
    */
   public exportToJSON(): string {
-    const nodes = this.dataModel.getAllNodes().map((node) => {
-      // 基本属性
-      const nodeData: any = {
-        id: node.getId(),
-        type:
-          node instanceof TextNode
-            ? "text"
-            : node instanceof ImageNode
-            ? "image"
-            : "unknown",
-        position: node.getPosition(),
-        size: node.getSize(),
-        style: {
-          backgroundColor: node.getBackgroundColor(),
-          borderColor: node.getBorderColor(),
-          borderWidth: node.getBorderWidth(),
-          opacity: node.getOpacity(),
-        },
-      };
+    // 获取所有节点的数据
+    const nodesData = this.dataModel.exportToJSON();
 
-      // 特定类型属性
-      if (node instanceof ImageNode) {
-        nodeData.imageUrl = node.getImageUrl();
-        nodeData.borderRadius = node.getBorderRadius();
-      } else if (node instanceof TextNode) {
-        nodeData.borderRadius = node.getBorderRadius();
-        nodeData.text = node.getText();
-        nodeData.style.textColor = node.getTextColor();
-        nodeData.style.fontSize = node.getFontSize();
-      }
+    // 添加背景设置数据
+    const editorData = {
+      backgroundColor: this.getBackgroundColor(),
+      backgroundImage: this.getBackgroundImage(),
+      nodes: nodesData,
+    };
 
-      if (node instanceof TextNode) {
-        nodeData.text = node.getText();
-        nodeData.style.textColor = node.getTextColor();
-        nodeData.style.fontSize = node.getFontSize();
-      }
-
-      return nodeData;
-    });
-
-    return JSON.stringify({ nodes });
+    return JSON.stringify(editorData);
   }
 
   /**
-   * 从JSON加载
-   * @param jsonData JSON字符串或对象
+   * 从JSON字符串中加载编辑器状态
+   * @param jsonString JSON字符串
    */
-  public loadFromJSON(jsonData: string | object): void {
-    let data: any;
+  public loadFromJSON(jsonString: string): void {
+    try {
+      const data = JSON.parse(jsonString);
 
-    if (typeof jsonData === "string") {
-      try {
-        data = JSON.parse(jsonData);
-      } catch (error) {
-        console.error("解析JSON失败:", error);
-        return;
+      // 加载背景设置
+      if (data.backgroundColor) {
+        this.setBackgroundColor(data.backgroundColor);
       }
-    } else {
-      data = jsonData;
-    }
 
-    // 清空当前画布
-    this.clear();
-
-    // 加载节点
-    if (data.nodes && Array.isArray(data.nodes)) {
-      for (const nodeData of data.nodes) {
-        if (!nodeData.type) continue;
-
-        switch (nodeData.type) {
-          case "text":
-            this.addTextNode({
-              x: nodeData.position.x,
-              y: nodeData.position.y,
-              width: nodeData.size.width,
-              height: nodeData.size.height,
-              backgroundColor: nodeData.style.backgroundColor,
-              borderColor: nodeData.style.borderColor,
-              borderWidth: nodeData.style.borderWidth,
-              borderRadius: nodeData.borderRadius,
-              opacity: nodeData.style.opacity,
-              text: nodeData.text,
-              textColor: nodeData.style.textColor,
-              fontSize: nodeData.style.fontSize,
-            });
-            break;
-
-          case "image":
-            this.addImageNode({
-              x: nodeData.position.x,
-              y: nodeData.position.y,
-              width: nodeData.size.width,
-              height: nodeData.size.height,
-              backgroundColor: nodeData.style.backgroundColor,
-              borderColor: nodeData.style.borderColor,
-              borderWidth: nodeData.style.borderWidth,
-              borderRadius: nodeData.borderRadius,
-              opacity: nodeData.style.opacity,
-              imageUrl: nodeData.imageUrl,
-            });
-            break;
-        }
+      if (data.backgroundImage) {
+        this.setBackgroundImage(data.backgroundImage);
       }
-    }
 
-    // 重绘
-    this.redraw();
+      // 加载节点数据
+      if (data.nodes) {
+        this.dataModel.loadFromJSON(data.nodes);
+      } else {
+        // 兼容旧版格式
+        this.dataModel.loadFromJSON(data);
+      }
+
+      // 重绘
+      this.redraw();
+    } catch (error) {
+      console.error("Failed to load from JSON:", error);
+    }
   }
 
   /**
@@ -536,5 +472,44 @@ export default class Editor {
     this.redraw();
 
     return textNode;
+  }
+
+  /**
+   * 设置画布背景颜色
+   * @param color 背景颜色值
+   */
+  public setBackgroundColor(color: string): void {
+    this.graphView.setBackgroundColor(color);
+  }
+
+  /**
+   * 设置画布背景图片
+   * @param imageUrl 图片URL
+   */
+  public setBackgroundImage(imageUrl: string): void {
+    this.graphView.setBackgroundImage(imageUrl);
+  }
+
+  /**
+   * 获取当前背景颜色
+   * @returns 当前背景颜色
+   */
+  public getBackgroundColor(): string {
+    return this.graphView["backgroundColor"];
+  }
+
+  /**
+   * 获取当前背景图片
+   * @returns 当前背景图片URL或null
+   */
+  public getBackgroundImage(): string | null {
+    return this.graphView["backgroundImage"];
+  }
+
+  /**
+   * 清除背景图片
+   */
+  public clearBackgroundImage(): void {
+    this.graphView.setBackgroundColor(this.graphView["backgroundColor"]);
   }
 }

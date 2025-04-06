@@ -7,6 +7,8 @@ export default class GraphView {
   private height: number;
   private backgroundColor: string;
   private backgroundImage: string | null;
+  private backgroundImageObj: HTMLImageElement | null = null;
+  private isBackgroundImageLoaded: boolean = false;
   private scale: number;
   private canvas: HTMLCanvasElement | null;
   private ctx: CanvasRenderingContext2D | null;
@@ -36,6 +38,8 @@ export default class GraphView {
     this.height = options.height;
     this.backgroundColor = options.backgroundColor || "#ffffff";
     this.backgroundImage = null;
+    this.backgroundImageObj = null;
+    this.isBackgroundImageLoaded = false;
     this.scale = options.scale || 1;
     this.canvas = null;
     this.ctx = null;
@@ -190,16 +194,19 @@ export default class GraphView {
     this.ctx.fillStyle = this.backgroundColor;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    // 如果有背景图，绘制背景图
-    if (this.backgroundImage) {
-      const img = new Image();
-      img.onload = () => {
-        // 绘制背景图片，使其适应画布大小
-        if (this.ctx) {
-          this.ctx.drawImage(img, 0, 0, this.width, this.height);
-        }
-      };
-      img.src = this.backgroundImage;
+    // 如果有背景图并且已加载完成，绘制背景图
+    if (
+      this.backgroundImage &&
+      this.isBackgroundImageLoaded &&
+      this.backgroundImageObj
+    ) {
+      this.ctx.drawImage(
+        this.backgroundImageObj,
+        0,
+        0,
+        this.width,
+        this.height,
+      );
     }
   }
 
@@ -214,11 +221,11 @@ export default class GraphView {
   public setBackgroundColor(color: string): void {
     this.backgroundColor = color;
     this.backgroundImage = null;
+    this.backgroundImageObj = null;
+    this.isBackgroundImageLoaded = false;
 
-    // 使用现有的清除方法
+    // 重绘
     this.clear();
-
-    // 通知外部重绘
     this.dispatchEvent("redraw", {});
   }
 
@@ -227,13 +234,36 @@ export default class GraphView {
    * @param imageUrl 图片URL
    */
   public setBackgroundImage(imageUrl: string): void {
+    // 如果URL相同，不重新加载
+    if (this.backgroundImage === imageUrl) return;
+
     this.backgroundImage = imageUrl;
+    this.isBackgroundImageLoaded = false;
 
-    // 使用现有的清除方法
-    this.clear();
+    // 预加载图片
+    const img = new Image();
 
-    // 通知外部重绘
-    this.dispatchEvent("redraw", {});
+    img.onload = () => {
+      this.backgroundImageObj = img;
+      this.isBackgroundImageLoaded = true;
+
+      // 重绘
+      this.clear();
+      this.dispatchEvent("redraw", {});
+    };
+
+    img.onerror = () => {
+      console.error("背景图片加载失败:", imageUrl);
+      this.backgroundImage = null;
+      this.backgroundImageObj = null;
+      this.isBackgroundImageLoaded = false;
+
+      // 重绘
+      this.clear();
+      this.dispatchEvent("redraw", {});
+    };
+
+    img.src = imageUrl;
   }
 
   /**

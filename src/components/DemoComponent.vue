@@ -2,6 +2,79 @@
   <div class="demo-component">
     <div class="toolbar">
       <div class="logo">通用节点演示</div>
+
+      <!-- 添加背景设置按钮 -->
+      <div class="canvas-settings">
+        <button
+          @click="showBackgroundSettings = !showBackgroundSettings"
+          class="settings-btn"
+        >
+          背景设置
+        </button>
+        <!-- 背景设置弹窗 -->
+        <div v-if="showBackgroundSettings" class="background-settings-panel">
+          <div class="panel-header">
+            <h3>背景设置</h3>
+            <button class="close-btn" @click="showBackgroundSettings = false">
+              ×
+            </button>
+          </div>
+
+          <div class="settings-content">
+            <div class="style-selector">
+              <span
+                class="style-option"
+                :class="{ active: backgroundType === 'color' }"
+                @click="backgroundType = 'color'"
+                >颜色</span
+              >
+              <span
+                class="style-option"
+                :class="{ active: backgroundType === 'image' }"
+                @click="backgroundType = 'image'"
+                >图片</span
+              >
+            </div>
+
+            <!-- 背景颜色选择器 -->
+            <div v-if="backgroundType === 'color'" class="form-group">
+              <label>背景颜色</label>
+              <input
+                type="color"
+                v-model="canvasBackgroundColor"
+                @change="setCanvasBackground"
+              />
+            </div>
+
+            <!-- 背景图片选择器 -->
+            <div v-if="backgroundType === 'image'" class="image-panel">
+              <div class="image-preview bg-preview">
+                <img
+                  v-if="canvasBackgroundImage"
+                  :src="canvasBackgroundImage"
+                  alt="背景图片预览"
+                />
+                <div v-else class="no-image">
+                  <button
+                    class="upload-img-btn"
+                    @click="openBackgroundFileSelector"
+                  >
+                    点击上传背景图片
+                  </button>
+                </div>
+              </div>
+
+              <div class="button-row" v-if="canvasBackgroundImage">
+                <button @click="openBackgroundFileSelector">更换图片</button>
+                <button @click="clearBackgroundImage" class="clear-btn">
+                  清除图片
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="action-buttons">
         <button @click="saveCanvas" class="save-btn">保存</button>
         <button @click="loadCanvas" class="load-btn">加载</button>
@@ -167,6 +240,15 @@
       accept="image/*"
       @change="handleFileUpload"
     />
+
+    <!-- 添加背景图片文件选择器 -->
+    <input
+      type="file"
+      ref="bgFileInput"
+      style="display: none"
+      accept="image/*"
+      @change="handleBackgroundFileUpload"
+    />
   </div>
 </template>
 
@@ -181,6 +263,13 @@ export default defineComponent({
     const editorContainer = ref<HTMLElement | null>(null);
     const editor = ref<Editor | null>(null);
     const fileInput = ref<HTMLInputElement | null>(null);
+    const bgFileInput = ref<HTMLInputElement | null>(null);
+
+    // 添加背景设置相关状态
+    const showBackgroundSettings = ref(false);
+    const backgroundType = ref<string>("color");
+    const canvasBackgroundColor = ref("#f5f5f5");
+    const canvasBackgroundImage = ref<string | null>(null);
 
     // 选中节点的属性
     const selectedNode = ref<BaseNode | null>(null);
@@ -204,7 +293,7 @@ export default defineComponent({
         editor.value = new Editor(editorContainer.value, {
           width: 800,
           height: 600,
-          backgroundColor: "#f5f5f5",
+          backgroundColor: canvasBackgroundColor.value,
         });
 
         // 添加示例节点
@@ -462,6 +551,24 @@ export default defineComponent({
       const jsonData = localStorage.getItem("universal-node-demo");
       if (jsonData) {
         editor.value.loadFromJSON(jsonData);
+
+        // 更新背景状态
+        try {
+          const data = JSON.parse(jsonData);
+          if (data.backgroundColor) {
+            canvasBackgroundColor.value = data.backgroundColor;
+          }
+
+          if (data.backgroundImage) {
+            canvasBackgroundImage.value = data.backgroundImage;
+            backgroundType.value = "image";
+          } else {
+            backgroundType.value = "color";
+          }
+        } catch (error) {
+          console.error("解析背景数据失败:", error);
+        }
+
         alert("加载成功");
       } else {
         alert("没有找到保存的数据");
@@ -485,9 +592,67 @@ export default defineComponent({
       return showImagePreview() && !hasImage();
     };
 
+    // 设置画布背景
+    const setCanvasBackground = () => {
+      if (!editor.value) return;
+
+      if (backgroundType.value === "color") {
+        editor.value.setBackgroundColor(canvasBackgroundColor.value);
+        canvasBackgroundImage.value = null;
+      } else if (
+        backgroundType.value === "image" &&
+        canvasBackgroundImage.value
+      ) {
+        editor.value.setBackgroundImage(canvasBackgroundImage.value);
+      }
+    };
+
+    // 打开背景图片文件选择器
+    const openBackgroundFileSelector = () => {
+      if (bgFileInput.value) {
+        bgFileInput.value.click();
+      }
+    };
+
+    // 处理背景图片上传
+    const handleBackgroundFileUpload = (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      if (
+        !target ||
+        !target.files ||
+        target.files.length === 0 ||
+        !editor.value
+      )
+        return;
+
+      const file = target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = (e: ProgressEvent<FileReader>) => {
+        if (e.target && e.target.result && editor.value) {
+          const imageData = e.target.result as string;
+          canvasBackgroundImage.value = imageData;
+          editor.value.setBackgroundImage(imageData);
+        }
+      };
+
+      reader.readAsDataURL(file);
+      target.value = ""; // 重置input
+    };
+
+    // 清除背景图片
+    const clearBackgroundImage = () => {
+      if (!editor.value) return;
+
+      canvasBackgroundImage.value = null;
+      editor.value.clearBackgroundImage();
+      backgroundType.value = "color";
+    };
+
     return {
       editorContainer,
       fileInput,
+      bgFileInput,
       selectedNode,
       backgroundColor,
       borderColor,
@@ -511,6 +676,14 @@ export default defineComponent({
       showImagePreview,
       hasImage,
       showUploadButton,
+      showBackgroundSettings,
+      backgroundType,
+      canvasBackgroundColor,
+      canvasBackgroundImage,
+      setCanvasBackground,
+      openBackgroundFileSelector,
+      handleBackgroundFileUpload,
+      clearBackgroundImage,
     };
   },
 });
@@ -536,6 +709,69 @@ export default defineComponent({
 .logo {
   font-weight: bold;
   font-size: 18px;
+}
+
+.canvas-settings {
+  position: relative;
+}
+
+.settings-btn {
+  background-color: #4a4af4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 20px;
+  cursor: pointer;
+}
+
+.background-settings-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 280px;
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+  margin-top: 8px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #ddd;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.settings-content {
+  padding: 16px;
+}
+
+.bg-preview {
+  margin-bottom: 12px;
+}
+
+.clear-btn {
+  background-color: #e74c3c;
 }
 
 .action-buttons {

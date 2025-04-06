@@ -152,6 +152,8 @@ export default class DataModel {
   }): TextNode {
     const node = new TextNode(this.graphView, this.generateId(), {
       ...attributes,
+      zIndex:
+        attributes.zIndex !== undefined ? attributes.zIndex : this.nextId++,
       opacity: attributes.opacity !== undefined ? attributes.opacity : 1,
     });
 
@@ -179,6 +181,8 @@ export default class DataModel {
   }): ImageNode {
     const node = new ImageNode(this.graphView, this.generateId(), {
       ...attributes,
+      zIndex:
+        attributes.zIndex !== undefined ? attributes.zIndex : this.nextId++,
       opacity: attributes.opacity !== undefined ? attributes.opacity : 1,
     });
 
@@ -262,6 +266,7 @@ export default class DataModel {
             ? "image"
             : "unknown",
         ...node.getPosition(),
+        ...node.getSize(),
         zIndex: node.getZIndex(),
       };
 
@@ -297,5 +302,66 @@ export default class DataModel {
   public clear(): void {
     this.nodes.clear();
     this.selector.clearSelection();
+  }
+
+  /**
+   * 从JSON字符串加载数据
+   * @param jsonString JSON字符串或对象
+   */
+  public loadFromJSON(jsonString: string | object): void {
+    let data: any;
+
+    // 解析JSON字符串
+    if (typeof jsonString === "string") {
+      try {
+        data = JSON.parse(jsonString);
+      } catch (error) {
+        console.error("解析JSON失败:", error);
+        return;
+      }
+    } else {
+      data = jsonString;
+    }
+
+    // 清空现有节点
+    this.clear();
+
+    // 加载节点
+    if (data.nodes && Array.isArray(data.nodes)) {
+      for (const nodeData of data.nodes) {
+        // 根据类型创建节点
+        if (nodeData.type === "text") {
+          this.addTextNode({
+            x: nodeData.x,
+            y: nodeData.y,
+            width: nodeData.width || 100,
+            height: nodeData.height || 60,
+            backgroundColor: nodeData.backgroundColor,
+            borderColor: nodeData.borderColor,
+            borderWidth: nodeData.borderWidth,
+            borderRadius: nodeData.borderRadius,
+            opacity: nodeData.opacity,
+            zIndex: nodeData.zIndex,
+            text: nodeData.text || "",
+            textColor: nodeData.textColor,
+            fontSize: nodeData.fontSize,
+          });
+        } else if (nodeData.type === "image") {
+          this.addImageNode({
+            x: nodeData.x,
+            y: nodeData.y,
+            width: nodeData.width || 100,
+            height: nodeData.height || 100,
+            backgroundColor: nodeData.backgroundColor,
+            borderColor: nodeData.borderColor,
+            borderWidth: nodeData.borderWidth,
+            borderRadius: nodeData.borderRadius,
+            opacity: nodeData.opacity,
+            zIndex: nodeData.zIndex,
+            imageUrl: nodeData.imageUrl,
+          });
+        }
+      }
+    }
   }
 }
