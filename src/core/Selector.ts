@@ -10,6 +10,7 @@ export default class Selector {
   private selectionBorderColor: string;
   private resizeHandleSize: number;
   private selectionChangeListeners: Array<(node: any) => void>;
+  private enabled: boolean = true;
 
   /**
    * 构造函数
@@ -21,6 +22,19 @@ export default class Selector {
     this.selectionBorderColor = "#3498db";
     this.resizeHandleSize = 8;
     this.selectionChangeListeners = [];
+    this.enabled = true;
+  }
+
+  /**
+   * 设置选择器是否启用
+   * @param value 是否启用
+   */
+  public setEnabled(value: boolean): void {
+    this.enabled = value;
+    // 如果禁用，则清除当前选择
+    if (!value && this.selectedNode) {
+      this.clearSelection();
+    }
   }
 
   /**
@@ -28,6 +42,8 @@ export default class Selector {
    * @param node 要选择的节点
    */
   public select(node: any): void {
+    if (!this.enabled) return;
+
     if (this.selectedNode !== node) {
       this.selectedNode = node;
       this.notifySelectionChange();
@@ -57,7 +73,7 @@ export default class Selector {
    * @param ctx Canvas上下文
    */
   public drawSelection(ctx: CanvasRenderingContext2D): void {
-    if (!this.selectedNode) return;
+    if (!this.selectedNode || !this.enabled) return;
 
     const { x, y } = this.selectedNode.getPosition();
     const { width, height } = this.selectedNode.getSize();

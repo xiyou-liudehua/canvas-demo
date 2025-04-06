@@ -287,7 +287,7 @@ export default class Editor {
     const editorData = {
       backgroundColor: this.getBackgroundColor(),
       backgroundImage: this.getBackgroundImage(),
-      nodes: nodesData,
+      nodes: JSON.parse(nodesData),
     };
 
     return JSON.stringify(editorData);
@@ -313,9 +313,6 @@ export default class Editor {
       // 加载节点数据
       if (data.nodes) {
         this.dataModel.loadFromJSON(data.nodes);
-      } else {
-        // 兼容旧版格式
-        this.dataModel.loadFromJSON(data);
       }
 
       // 重绘

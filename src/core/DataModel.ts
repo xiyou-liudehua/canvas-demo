@@ -293,7 +293,7 @@ export default class DataModel {
       return data;
     });
 
-    return JSON.stringify({ nodes: nodeData });
+    return JSON.stringify(nodeData || []);
   }
 
   /**
@@ -327,8 +327,8 @@ export default class DataModel {
     this.clear();
 
     // 加载节点
-    if (data.nodes && Array.isArray(data.nodes)) {
-      for (const nodeData of data.nodes) {
+    if (data && Array.isArray(data)) {
+      for (const nodeData of data) {
         // 根据类型创建节点
         if (nodeData.type === "text") {
           this.addTextNode({

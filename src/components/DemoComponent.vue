@@ -76,6 +76,7 @@
       </div>
 
       <div class="action-buttons">
+        <button @click="openPreview" class="preview-btn">预览</button>
         <button @click="saveCanvas" class="save-btn">保存</button>
         <button @click="loadCanvas" class="load-btn">加载</button>
       </div>
@@ -249,15 +250,28 @@
       accept="image/*"
       @change="handleBackgroundFileUpload"
     />
+
+    <!-- 添加预览组件 -->
+    <CanvasPreview
+      :visible="showPreview"
+      :jsonData="previewData"
+      :width="800"
+      :height="600"
+      @close="showPreview = false"
+    />
   </div>
 </template>
 
 <script lang="ts">
 import { defineComponent, ref, onMounted } from "vue";
 import { Editor, BaseNode, TextNode, ImageNode } from "../core";
+import CanvasPreview from "./CanvasPreview.vue";
 
 export default defineComponent({
   name: "DemoComponent",
+  components: {
+    CanvasPreview,
+  },
 
   setup() {
     const editorContainer = ref<HTMLElement | null>(null);
@@ -285,6 +299,12 @@ export default defineComponent({
 
     // 节点类型
     const nodeType = ref<string>("text");
+
+    // 添加预览相关状态
+    const showPreview = ref(false);
+    const previewData = ref("");
+    const previewWidth = ref(800);
+    const previewHeight = ref(600);
 
     // 当组件挂载后初始化编辑器
     onMounted(() => {
@@ -649,6 +669,33 @@ export default defineComponent({
       backgroundType.value = "color";
     };
 
+    // 打开预览
+    const openPreview = () => {
+      console.log("打开预览");
+
+      try {
+        if (!editor.value) {
+          console.error("编辑器未初始化");
+          return;
+        }
+
+        // 导出当前数据为JSON
+        const jsonData = editor.value.exportToJSON();
+
+        console.log("预览数据:", jsonData.slice(0, 100) + "...");
+
+        // 设置预览数据和大小
+        previewData.value = jsonData;
+        previewWidth.value = 800;
+        previewHeight.value = 600;
+
+        // 显示预览组件
+        showPreview.value = true;
+      } catch (error) {
+        console.error("生成预览数据失败:", error);
+      }
+    };
+
     return {
       editorContainer,
       fileInput,
@@ -684,6 +731,11 @@ export default defineComponent({
       openBackgroundFileSelector,
       handleBackgroundFileUpload,
       clearBackgroundImage,
+      showPreview,
+      previewData,
+      previewWidth,
+      previewHeight,
+      openPreview,
     };
   },
 });
@@ -779,8 +831,9 @@ export default defineComponent({
   align-items: center;
 }
 
-.load-btn,
-.save-btn {
+.preview-btn,
+.save-btn,
+.load-btn {
   background-color: #4a4af4;
   color: white;
   border: none;
